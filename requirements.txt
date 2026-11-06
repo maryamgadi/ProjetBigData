@@ -1,0 +1,5 @@
+kafka-python-ng
+pandas
+redis
+requests
+python-dotenv
