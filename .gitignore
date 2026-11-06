@@ -1,7 +1,19 @@
-.venv/
+# Données volumineuses
+data/
+*.csv
+*.parquet
+
+# Identifiants
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Python
 __pycache__/
 *.pyc
-data/*.csv
-!data/paysim_sample.csv
-*.pdf
-.DS_Store
+.venv/
+
+# Spark
+spark-warehouse/
+metastore_db/

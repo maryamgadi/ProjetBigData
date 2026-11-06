@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   # Broker Apache Kafka en mode KRaft (moderne, pas besoin de ZooKeeper)
@@ -27,7 +27,7 @@ services:
     networks:
       - fraud-network
 
-  # Création automatique du topic avec 3 partitions pour le parallélisme
+  # CrÃ©ation automatique du topic avec 3 partitions pour le parallÃ©lisme
   kafka-init:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka-init
@@ -36,20 +36,20 @@ services:
     entrypoint: [ "sh", "-c" ]
     command: |
       "
-       # Attendre que Kafka soit prêt
+       # Attendre que Kafka soit prÃªt
        echo -e 'Attente de Kafka...'
        kafka-topics --bootstrap-server kafka:29092 --list
 
-       echo -e 'Création du topic financial-transactions'
+       echo -e 'CrÃ©ation du topic financial-transactions'
        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic financial-transactions --replication-factor 1 --partitions 3
 
-       echo -e 'Topics créés :'
+       echo -e 'Topics crÃ©Ã©s :'
        kafka-topics --bootstrap-server kafka:29092 --list
        "
     networks:
       - fraud-network
 
-  # Redis Feature Store (pour le temps réel < 2ms)
+  # Redis Feature Store (pour le temps rÃ©el < 2ms)
   redis:
     image: redis:7-alpine
     container_name: redis-feature-store
@@ -60,9 +60,26 @@ services:
     networks:
       - fraud-network
 
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: fraud-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+
 volumes:
   kafka_data:
   redis_data:
+  minio_data:
 
 networks:
   fraud-network:
