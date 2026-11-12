@@ -4,3 +4,5 @@ redis
 requests
 python-dotenv
 pyspark==3.5.3
+torch
+torch-geometric
