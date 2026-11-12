@@ -1,0 +1,67 @@
+{
+  "feature_set": "pre_tx",
+  "features": [
+    "type",
+    "hour",
+    "amount",
+    "oldbalanceOrg",
+    "oldbalanceDest",
+    "amountToBalanceOrig",
+    "destEmptyBefore",
+    "amountEqualsBalance",
+    "amountExceedsBalance",
+    "amountIsCap",
+    "remainingOrig"
+  ],
+  "auc_roc": 0.9975334777828657,
+  "pr_auc": 0.9975842982622791,
+  "at_2fa_threshold": {
+    "threshold": 0.6,
+    "tp": 2426,
+    "fp": 1,
+    "fn": 6,
+    "tn": 114247,
+    "recall": 0.9975328947368421,
+    "precision": 0.99958796868562,
+    "fpr_transfer_cashout": 8.752888453189553e-06,
+    "fpr_all_transactions": 3.5947818147177556e-06
+  },
+  "at_refuse_threshold": {
+    "threshold": 0.85,
+    "tp": 2411,
+    "fp": 0,
+    "fn": 21,
+    "tn": 114248,
+    "recall": 0.9913651315789473,
+    "precision": 1.0,
+    "fpr_transfer_cashout": 0.0,
+    "fpr_all_transactions": 0.0
+  },
+  "best_iteration": 74,
+  "scale_pos_weight": 23.77755684845406,
+  "decision_zones": {
+    "legit": {
+      "APPROVE": 114247,
+      "2FA": 1,
+      "REFUSE": 0
+    },
+    "fraud": {
+      "APPROVE": 6,
+      "2FA": 15,
+      "REFUSE": 2411
+    }
+  },
+  "feature_importance_gain": {
+    "oldbalanceDest": 189155345.52839136,
+    "amountEqualsBalance": 40595967.24145508,
+    "remainingOrig": 33322743.647723198,
+    "amountExceedsBalance": 7931675.511899948,
+    "oldbalanceOrg": 3286908.257987976,
+    "amount": 1438825.6900234222,
+    "amountToBalanceOrig": 645961.958304882,
+    "amountIsCap": 540052.9429540634,
+    "hour": 491305.3277873993,
+    "type": 14751.97119474411,
+    "destEmptyBefore": 2580.926945209503
+  }
+}

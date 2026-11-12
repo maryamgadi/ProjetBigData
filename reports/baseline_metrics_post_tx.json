@@ -1,0 +1,67 @@
+{
+  "feature_set": "post_tx",
+  "features": [
+    "type",
+    "hour",
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "errorBalanceOrig",
+    "errorBalanceDest",
+    "origEmptied",
+    "destZeroBefore"
+  ],
+  "auc_roc": 0.999583028517832,
+  "pr_auc": 0.9993263209917144,
+  "best_iteration": 53,
+  "scale_pos_weight": 23.77755684845406,
+  "at_2fa_threshold": {
+    "threshold": 0.6,
+    "tp": 2407,
+    "fp": 11,
+    "fn": 25,
+    "tn": 114237,
+    "recall": 0.9897203947368421,
+    "precision": 0.9954507857733664,
+    "fpr_transfer_cashout": 9.628177298508507e-05,
+    "fpr_all_transactions": 3.954259996189531e-05
+  },
+  "at_refuse_threshold": {
+    "threshold": 0.85,
+    "tp": 2398,
+    "fp": 5,
+    "fn": 34,
+    "tn": 114243,
+    "recall": 0.9860197368421053,
+    "precision": 0.997919267582189,
+    "fpr_transfer_cashout": 4.3764442265947765e-05,
+    "fpr_all_transactions": 1.7973909073588778e-05
+  },
+  "decision_zones": {
+    "legit": {
+      "APPROVE": 114237,
+      "2FA": 6,
+      "REFUSE": 5
+    },
+    "fraud": {
+      "APPROVE": 25,
+      "2FA": 9,
+      "REFUSE": 2398
+    }
+  },
+  "feature_importance_gain": {
+    "amount": 53051850.47373009,
+    "hour": 43485307.3002224,
+    "newbalanceDest": 18532838.981071472,
+    "oldbalanceOrg": 15788727.831602097,
+    "newbalanceOrig": 13540635.956474304,
+    "errorBalanceDest": 11997515.144611359,
+    "destZeroBefore": 5743500.265716553,
+    "type": 3688107.2300071716,
+    "errorBalanceOrig": 3680926.990301132,
+    "origEmptied": 1372343.362915039,
+    "oldbalanceDest": 880047.0926361084
+  }
+}

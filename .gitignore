@@ -17,3 +17,9 @@ __pycache__/
 # Spark
 spark-warehouse/
 metastore_db/
+# Modèle de configuration versionné
+!.env.example
+!**/.env.example
+
+# Modèles entraînés (régénérables, trop lourds pour git)
+models/

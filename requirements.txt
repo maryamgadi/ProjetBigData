@@ -3,3 +3,7 @@ pandas
 redis
 requests
 python-dotenv
+boto3
+pyspark==3.5.1
+lightgbm
+scikit-learn

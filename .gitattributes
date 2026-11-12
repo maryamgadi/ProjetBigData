@@ -1,0 +1,3 @@
+# Les scripts exécutés dans les conteneurs Linux doivent garder des fins de ligne LF
+*.sh text eol=lf
+*.yml text eol=lf
