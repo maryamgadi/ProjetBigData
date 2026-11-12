@@ -1,7 +1,9 @@
-﻿version: '3.8'
+﻿# Stack locale de la plateforme de détection de fraude.
+# Lancement (depuis infra/) : docker compose up -d
+# Les identifiants MinIO sont lus dans infra/.env (voir infra/.env.example).
 
 services:
-  # Broker Apache Kafka en mode KRaft (moderne, pas besoin de ZooKeeper)
+  # Broker Apache Kafka en mode KRaft (pas de ZooKeeper)
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka-broker
@@ -20,36 +22,44 @@ services:
       KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      # Les logs Kafka (= les messages) sont écrits dans le volume persistant,
+      # sinon tout est perdu au redémarrage du conteneur.
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      # Pas de création implicite de topic : seul kafka-init crée les topics.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      # Heap JVM bridée (1 Go par défaut) pour tourner sur un PC portable
+      KAFKA_HEAP_OPTS: '-Xms256m -Xmx512m'
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 15s
     networks:
       - fraud-network
 
-  # CrÃ©ation automatique du topic avec 3 partitions pour le parallÃ©lisme
+  # Création du topic (3 partitions, clé = nameOrig) une fois Kafka prêt
   kafka-init:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka-init
     depends_on:
-      - kafka
-    entrypoint: [ "sh", "-c" ]
+      kafka:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
     command: |
       "
-       # Attendre que Kafka soit prÃªt
-       echo -e 'Attente de Kafka...'
-       kafka-topics --bootstrap-server kafka:29092 --list
-
-       echo -e 'CrÃ©ation du topic financial-transactions'
-       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic financial-transactions --replication-factor 1 --partitions 3
-
-       echo -e 'Topics crÃ©Ã©s :'
-       kafka-topics --bootstrap-server kafka:29092 --list
-       "
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic financial-transactions --replication-factor 1 --partitions 3
+      echo 'Topics disponibles :'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+    restart: "no"
     networks:
       - fraud-network
 
-  # Redis Feature Store (pour le temps rÃ©el < 2ms)
+  # Redis Feature Store (lecture temps réel < 2 ms)
   redis:
     image: redis:7-alpine
     container_name: redis-feature-store
@@ -60,7 +70,7 @@ services:
     networks:
       - fraud-network
 
-
+  # Stockage objet S3 (Data Lakehouse)
   minio:
     image: cgr.dev/chainguard/minio:latest
     container_name: fraud-minio
@@ -74,12 +84,72 @@ services:
     volumes:
       - minio_data:/data
     restart: unless-stopped
+    networks:
+      - fraud-network
 
+  # Création des buckets MinIO une fois MinIO prêt
+  minio-init:
+    # minio/mc n'est plus publié sur Docker Hub : client mc de Chainguard (variante -dev = avec shell)
+    image: cgr.dev/chainguard/minio-client:latest-dev
+    container_name: minio-init
+    user: root
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["sh", "-c"]
+    command: |
+      "
+      until mc alias set local http://fraud-minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD >/dev/null 2>&1; do
+        echo 'Attente de MinIO...'; sleep 2;
+      done
+      for b in paysim-raw paysim-historical paysim-streaming fraud-lakehouse; do
+        mc mb --ignore-existing local/$$b
+      done
+      mc ls local
+      "
+    restart: "no"
+    networks:
+      - fraud-network
+
+  # Conteneur Spark (driver local) : exécute les jobs PySpark du dossier src/
+  # Usage : docker compose exec spark /workspace/scripts/run_spark.sh src/<job>.py
+  spark:
+    image: apache/spark:3.5.1-python3
+    container_name: fraud-spark
+    user: root
+    command: ["sleep", "infinity"]
+    working_dir: /workspace
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ENDPOINT: http://fraud-minio:9000
+      KAFKA_BOOTSTRAP: kafka:29092
+      HOME: /root
+      # Ressources du driver Spark local (augmenter sur une machine plus puissante)
+      SPARK_CORES: "2"
+      SPARK_DRIVER_MEMORY: 1g
+      # Connecteurs chargés par spark-submit --packages (Kafka, S3A, Delta Lake)
+      SPARK_PACKAGES: "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.hadoop:hadoop-aws:3.3.4,io.delta:delta-spark_2.12:3.2.0"
+    ports:
+      - "4040:4040"
+    volumes:
+      - ..:/workspace
+      - spark_ivy:/root/.ivy2
+    networks:
+      - fraud-network
 
 volumes:
   kafka_data:
   redis_data:
   minio_data:
+  spark_ivy:
 
 networks:
   fraud-network:

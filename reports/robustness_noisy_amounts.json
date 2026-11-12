@@ -1,0 +1,216 @@
+{
+  "noise_levels": [
+    0.0,
+    0.001,
+    0.01,
+    0.05,
+    0.1
+  ],
+  "frauds_still_exact": {
+    "0.0": 0.9761513157894737,
+    "0.001": 0.004111842105263158,
+    "0.01": 0.004523026315789474,
+    "0.05": 0.004111842105263158,
+    "0.1": 0.004111842105263158
+  },
+  "results": [
+    {
+      "model": "pre_tx",
+      "noise_level": 0.0,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.9975,
+      "pr_auc": 0.9976,
+      "recall_at_0.60": 0.9975,
+      "fpr_all_tx_at_0.60": 4e-06,
+      "fp_at_0.60": 1,
+      "missed_frauds_at_0.60": 6
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.001,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3347,
+      "pr_auc": 0.2291,
+      "recall_at_0.60": 0.1912,
+      "fpr_all_tx_at_0.60": 4e-06,
+      "fp_at_0.60": 1,
+      "missed_frauds_at_0.60": 1967
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.001,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9968,
+      "pr_auc": 0.9933,
+      "recall_at_0.60": 0.9955,
+      "fpr_all_tx_at_0.60": 0.000219,
+      "fp_at_0.60": 61,
+      "missed_frauds_at_0.60": 11
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.01,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3338,
+      "pr_auc": 0.2291,
+      "recall_at_0.60": 0.1912,
+      "fpr_all_tx_at_0.60": 4e-06,
+      "fp_at_0.60": 1,
+      "missed_frauds_at_0.60": 1967
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.01,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9987,
+      "pr_auc": 0.979,
+      "recall_at_0.60": 0.9831,
+      "fpr_all_tx_at_0.60": 0.001193,
+      "fp_at_0.60": 332,
+      "missed_frauds_at_0.60": 41
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.05,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3333,
+      "pr_auc": 0.2338,
+      "recall_at_0.60": 0.1908,
+      "fpr_all_tx_at_0.60": 4e-06,
+      "fp_at_0.60": 1,
+      "missed_frauds_at_0.60": 1968
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.05,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9955,
+      "pr_auc": 0.9558,
+      "recall_at_0.60": 0.9844,
+      "fpr_all_tx_at_0.60": 0.001956,
+      "fp_at_0.60": 544,
+      "missed_frauds_at_0.60": 38
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.1,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3407,
+      "pr_auc": 0.2423,
+      "recall_at_0.60": 0.1974,
+      "fpr_all_tx_at_0.60": 4e-06,
+      "fp_at_0.60": 1,
+      "missed_frauds_at_0.60": 1952
+    },
+    {
+      "model": "pre_tx",
+      "noise_level": 0.1,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9988,
+      "pr_auc": 0.9442,
+      "recall_at_0.60": 0.9745,
+      "fpr_all_tx_at_0.60": 0.003257,
+      "fp_at_0.60": 906,
+      "missed_frauds_at_0.60": 62
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.0,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.9842,
+      "pr_auc": 0.9201,
+      "recall_at_0.60": 0.9511,
+      "fpr_all_tx_at_0.60": 0.001733,
+      "fp_at_0.60": 482,
+      "missed_frauds_at_0.60": 119
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.001,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.7693,
+      "pr_auc": 0.5231,
+      "recall_at_0.60": 0.4889,
+      "fpr_all_tx_at_0.60": 0.001733,
+      "fp_at_0.60": 482,
+      "missed_frauds_at_0.60": 1243
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.001,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9873,
+      "pr_auc": 0.9416,
+      "recall_at_0.60": 0.9844,
+      "fpr_all_tx_at_0.60": 0.000528,
+      "fp_at_0.60": 147,
+      "missed_frauds_at_0.60": 38
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.01,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.7704,
+      "pr_auc": 0.5234,
+      "recall_at_0.60": 0.4893,
+      "fpr_all_tx_at_0.60": 0.001733,
+      "fp_at_0.60": 482,
+      "missed_frauds_at_0.60": 1242
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.01,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9692,
+      "pr_auc": 0.8959,
+      "recall_at_0.60": 0.8919,
+      "fpr_all_tx_at_0.60": 0.00151,
+      "fp_at_0.60": 420,
+      "missed_frauds_at_0.60": 263
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.05,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.7734,
+      "pr_auc": 0.5241,
+      "recall_at_0.60": 0.4901,
+      "fpr_all_tx_at_0.60": 0.001733,
+      "fp_at_0.60": 482,
+      "missed_frauds_at_0.60": 1240
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.05,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9867,
+      "pr_auc": 0.9109,
+      "recall_at_0.60": 0.919,
+      "fpr_all_tx_at_0.60": 0.001251,
+      "fp_at_0.60": 348,
+      "missed_frauds_at_0.60": 197
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.1,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.7769,
+      "pr_auc": 0.524,
+      "recall_at_0.60": 0.4901,
+      "fpr_all_tx_at_0.60": 0.001733,
+      "fp_at_0.60": 482,
+      "missed_frauds_at_0.60": 1240
+    },
+    {
+      "model": "pre_tx_v1",
+      "noise_level": 0.1,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9544,
+      "pr_auc": 0.8618,
+      "recall_at_0.60": 0.8886,
+      "fpr_all_tx_at_0.60": 0.003465,
+      "fp_at_0.60": 964,
+      "missed_frauds_at_0.60": 271
+    }
+  ]
+}
