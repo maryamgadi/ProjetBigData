@@ -17,3 +17,6 @@ __pycache__/
 # Spark
 spark-warehouse/
 metastore_db/
+checkpoints/
+tools/
+spark_log.txt
