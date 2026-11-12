@@ -3,3 +3,4 @@ pandas
 redis
 requests
 python-dotenv
+pyspark==3.5.3
