@@ -114,6 +114,105 @@
       "missed_frauds_at_0.60": 62
     },
     {
+      "model": "pre_tx_graph",
+      "noise_level": 0.0,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.9963,
+      "pr_auc": 0.9964,
+      "recall_at_0.60": 0.9963,
+      "fpr_all_tx_at_0.60": 6.1e-05,
+      "fp_at_0.60": 17,
+      "missed_frauds_at_0.60": 9
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.001,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3766,
+      "pr_auc": 0.2848,
+      "recall_at_0.60": 0.2722,
+      "fpr_all_tx_at_0.60": 6.1e-05,
+      "fp_at_0.60": 17,
+      "missed_frauds_at_0.60": 1770
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.001,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9769,
+      "pr_auc": 0.9568,
+      "recall_at_0.60": 0.9704,
+      "fpr_all_tx_at_0.60": 0.000377,
+      "fp_at_0.60": 105,
+      "missed_frauds_at_0.60": 72
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.01,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3776,
+      "pr_auc": 0.2856,
+      "recall_at_0.60": 0.273,
+      "fpr_all_tx_at_0.60": 6.1e-05,
+      "fp_at_0.60": 17,
+      "missed_frauds_at_0.60": 1768
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.01,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9668,
+      "pr_auc": 0.9202,
+      "recall_at_0.60": 0.9309,
+      "fpr_all_tx_at_0.60": 0.000708,
+      "fp_at_0.60": 197,
+      "missed_frauds_at_0.60": 168
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.05,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3741,
+      "pr_auc": 0.2815,
+      "recall_at_0.60": 0.2689,
+      "fpr_all_tx_at_0.60": 6.1e-05,
+      "fp_at_0.60": 17,
+      "missed_frauds_at_0.60": 1778
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.05,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9108,
+      "pr_auc": 0.8439,
+      "recall_at_0.60": 0.8627,
+      "fpr_all_tx_at_0.60": 0.001769,
+      "fp_at_0.60": 492,
+      "missed_frauds_at_0.60": 334
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.1,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3593,
+      "pr_auc": 0.2655,
+      "recall_at_0.60": 0.2529,
+      "fpr_all_tx_at_0.60": 6.1e-05,
+      "fp_at_0.60": 17,
+      "missed_frauds_at_0.60": 1817
+    },
+    {
+      "model": "pre_tx_graph",
+      "noise_level": 0.1,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9978,
+      "pr_auc": 0.936,
+      "recall_at_0.60": 0.9626,
+      "fpr_all_tx_at_0.60": 0.00271,
+      "fp_at_0.60": 754,
+      "missed_frauds_at_0.60": 91
+    },
+    {
       "model": "pre_tx_v1",
       "noise_level": 0.0,
       "scenario": "A_attack_test_only",
@@ -211,6 +310,105 @@
       "fpr_all_tx_at_0.60": 0.003465,
       "fp_at_0.60": 964,
       "missed_frauds_at_0.60": 271
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.0,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.9992,
+      "pr_auc": 0.9767,
+      "recall_at_0.60": 0.9967,
+      "fpr_all_tx_at_0.60": 0.000963,
+      "fp_at_0.60": 268,
+      "missed_frauds_at_0.60": 8
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.001,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.4,
+      "pr_auc": 0.3679,
+      "recall_at_0.60": 0.3635,
+      "fpr_all_tx_at_0.60": 0.000963,
+      "fp_at_0.60": 268,
+      "missed_frauds_at_0.60": 1548
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.001,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9995,
+      "pr_auc": 0.993,
+      "recall_at_0.60": 0.9996,
+      "fpr_all_tx_at_0.60": 0.000277,
+      "fp_at_0.60": 77,
+      "missed_frauds_at_0.60": 1
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.01,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.4004,
+      "pr_auc": 0.368,
+      "recall_at_0.60": 0.3639,
+      "fpr_all_tx_at_0.60": 0.000963,
+      "fp_at_0.60": 268,
+      "missed_frauds_at_0.60": 1547
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.01,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9966,
+      "pr_auc": 0.9719,
+      "recall_at_0.60": 0.9836,
+      "fpr_all_tx_at_0.60": 0.001035,
+      "fp_at_0.60": 288,
+      "missed_frauds_at_0.60": 40
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.05,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.4,
+      "pr_auc": 0.3678,
+      "recall_at_0.60": 0.3635,
+      "fpr_all_tx_at_0.60": 0.000963,
+      "fp_at_0.60": 268,
+      "missed_frauds_at_0.60": 1548
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.05,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9957,
+      "pr_auc": 0.9582,
+      "recall_at_0.60": 0.9864,
+      "fpr_all_tx_at_0.60": 0.001966,
+      "fp_at_0.60": 547,
+      "missed_frauds_at_0.60": 33
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.1,
+      "scenario": "A_attack_test_only",
+      "auc_roc": 0.3975,
+      "pr_auc": 0.3654,
+      "recall_at_0.60": 0.361,
+      "fpr_all_tx_at_0.60": 0.000963,
+      "fp_at_0.60": 268,
+      "missed_frauds_at_0.60": 1554
+    },
+    {
+      "model": "pre_tx_v1_graph",
+      "noise_level": 0.1,
+      "scenario": "B_retrained_on_noisy",
+      "auc_roc": 0.9985,
+      "pr_auc": 0.9397,
+      "recall_at_0.60": 0.9745,
+      "fpr_all_tx_at_0.60": 0.003034,
+      "fp_at_0.60": 844,
+      "missed_frauds_at_0.60": 62
     }
   ]
 }

@@ -92,6 +92,9 @@ Limite : ce motif « vidage exact du compte » est une règle du simulateur PayS
 réelles il serait moins net. C'est pour cela que la v1 est gardée comme ablation dans le rapport
 (`--features pre_tx_v1`).
 
+`post_tx` n'est pas utilisable : le CDC note la transaction **avant validation**, les soldes
+après transaction ne sont pas encore connus et, dans PaySim, ils trahissent la fraude.
+
 ### 4. Test de robustesse : montants bruités
 
 ```bash
@@ -145,10 +148,66 @@ puis http://localhost:5000. Pour viser un serveur MLflow partagé : variable `ML
 Auditabilité (exigence du CDC) : l'empreinte SHA-256 identifie la version exacte des données de
 chaque modèle ; la même donnée est versionnée dans Delta (`bronze/historical`, Time Travel).
 
-`post_tx` n'est pas utilisable : le CDC note la transaction **avant validation**, les soldes
-après transaction ne sont pas encore connus et, dans PaySim, ils trahissent la fraude.
+### 6. Fusion graphe + LightGBM (semaine 3)
 
-### 6. Démo de bout en bout (livrable semaine 1)
+`src/graph_features.py` ajoute 5 features du **réseau de comptes**, calculées « point-in-time » :
+pour une transaction au step *s*, on ne compte que les transactions des steps **strictement
+antérieurs** (jamais la transaction elle-même ni le futur ; testé dans `tests/test_graph_features.py`).
+
+| Feature | Sens |
+|---|---|
+| `g_dest_in_count`, `g_dest_in_amount_log` | ce que le destinataire a déjà reçu (nombre, montant) |
+| `g_dest_out_count` | ce que le destinataire a déjà réémis (profil « mule ») |
+| `g_orig_in_count`, `g_orig_out_count` | historique de l'émetteur |
+
+```bash
+.venv\Scripts\python src\15_baseline_lightgbm.py --features pre_tx_graph
+.venv\Scripts\python src\16_robustness_noisy_amounts.py        # 4 modèles, ~12 min
+```
+
+Le premier lancement calcule les features sur les 6,36 M transactions (~2 min) puis les met en
+cache (`data/processed/graph_features_*.parquet`).
+
+**Signal** : 99,9 % des fraudes TRANSFER vont vers un compte qui n'a **jamais** rien reçu,
+contre 13 % des transferts légitimes (compte mule fraîchement ouvert).
+
+**Données propres** : le graphe n'apporte presque rien (0,1–0,2 % du gain du modèle), car
+montant et solde donnent déjà la réponse. Le gain apparent de `pre_tx_v1_graph` est un
+artefact : `pre_tx_v1` seul obtient le même score avec un autre tirage de colonnes
+(`feature_fraction`), ces modèles s'arrêtant après 1 à 7 arbres.
+
+**Montants bruités, scénario B** (modèle réentraîné) — rappel / faux positifs @0,60 :
+
+| Bruit max | `pre_tx` | `pre_tx_graph` | `pre_tx_v1` | `pre_tx_v1_graph` |
+|---|---|---|---|---|
+| 0,1 % | 99,6 % / 0,022 % | 97,0 % / 0,038 % | 98,4 % / 0,053 % | **99,96 % / 0,028 %** |
+| 1 % | 98,3 % / 0,119 % | 93,1 % / **0,071 %** | 89,2 % / 0,151 % | **98,4 %** / 0,104 % |
+| 5 % | 98,4 % / 0,196 % | 86,3 % / 0,177 % | 91,9 % / 0,125 % | **98,6 %** / 0,197 % |
+| 10 % | 97,5 % / 0,326 % | 96,3 % / **0,271 %** | 88,9 % / 0,347 % | **97,5 %** / 0,303 % |
+
+Scénario A (modèle non réentraîné) : tous les modèles s'effondrent (rappel 19–49 %), avec ou
+sans graphe.
+
+Lecture honnête : les features de graphe simples aident **par endroits** (rappel de la v1
+remonté de ~90 % à ~98 %, faux positifs de `pre_tx` abaissés à 1 % et 10 % de bruit) mais pas de
+façon régulière, et aucun modèle ne tient les faux positifs sous 0,1 % au-delà de 1 % de bruit.
+Un seul tirage aléatoire (seed 42) : les écarts de quelques dixièmes de point peuvent venir de
+la variance. C'est la référence que les **embeddings GraphSAGE** doivent dépasser.
+
+**Brancher les embeddings GNN** (fichier de Maryam : colonne `account` + `emb_0..emb_63`,
+calculé sur le graphe d'historique) :
+
+```bash
+.venv\Scripts\python src\15_baseline_lightgbm.py --features pre_tx_graph --embeddings data\embeddings.parquet
+```
+
+Les embeddings de l'émetteur (`eo_*`) et du destinataire (`ed_*`) sont ajoutés ; un compte
+absent du graphe reçoit un vecteur nul et `known_eo` / `known_ed` = 0. Attention à la fuite :
+si GraphSAGE est entraîné de façon supervisée avec `y_node` sur l'historique, les embeddings des
+comptes d'entraînement « contiennent » déjà la réponse. Préférer un entraînement non supervisé
+(ou seulement sur la partie *train*, jamais *valid*/test).
+
+### 7. Démo de bout en bout (livrable semaine 1)
 
 ```bash
 # Terminal 1 : job streaming (tourne en continu)
@@ -164,6 +223,22 @@ docker compose exec spark /workspace/scripts/run_spark.sh src/12_verify_no_loss.
 Test de reprise : arrêter le job 11 au milieu de l'envoi, le relancer ; le
 checkpoint le fait repartir au bon offset et le script 12 doit toujours
 afficher `OK - aucune perte, aucun doublon`.
+
+## Données personnelles (RGPD)
+
+Le producteur peut pseudonymiser les identifiants de comptes avant envoi dans Kafka :
+
+```bash
+set ANON_KEY=une-cle-longue-et-aleatoire
+.venv\Scripts\python producer\producer.py --anonymize
+```
+
+`C1231006815` devient `C` + HMAC-SHA256(clé, identifiant) tronqué à 16 caractères
+(`producer/anonymize.py`). Le résultat est déterministe : les agrégats par compte (Redis), le
+partitionnement Kafka et le graphe fonctionnent toujours. Il n'est pas réversible sans la clé,
+qui se trouve dans `infra/.env` et n'est jamais versionnée. La lettre C (client) / M (marchand)
+est conservée. C'est une **pseudonymisation** au sens du RGPD (art. 4.5) : tous les composants
+qui cherchent un compte (graphe, embeddings, API) doivent utiliser la même clé.
 
 ## Réinitialiser
 
