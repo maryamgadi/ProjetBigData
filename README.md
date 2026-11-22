@@ -147,3 +147,38 @@ afficher `OK - aucune perte, aucun doublon`.
 ```bash
 docker compose down -v   # supprime aussi les volumes (Kafka, MinIO, Redis)
 ```
+
+## Inférence temps réel
+
+`src/scoring.py` score **une** transaction (features → LightGBM → décision). Il est prévu pour être
+importé tel quel par l'API FastAPI :
+
+```python
+from scoring import FraudScorer
+scorer = FraudScorer()   # charge models/baseline_lgbm_pre_tx.txt une seule fois
+scorer.score({"step": 521, "type": "TRANSFER", "amount": 181.0,
+              "oldbalanceOrg": 181.0, "oldbalanceDest": 0.0})
+# {"score": 0.99..., "decision": "REFUSE", "latency_ms": 0.1}
+```
+
+- Entrée : `step, type, amount, oldbalanceOrg, oldbalanceDest`, c'est-à-dire uniquement ce
+  qui est connu **avant** validation.
+- Les types sans fraude dans PaySim (`PAYMENT`, `CASH_IN`, `DEBIT`) reçoivent le score 0, donc
+  `APPROVE`.
+- Décision : `< 0,60` → `APPROVE`, `0,60–0,85` → `2FA`, `≥ 0,85` → `REFUSE`.
+
+Benchmark (`reports/inference_benchmark.json`) :
+
+```bash
+.venv\Scripts\python src\17_inference_benchmark.py
+```
+
+| Mesure | Résultat | Objectif CDC |
+|---|---|---|
+| Cohérence avec l'évaluation batch | écart max 0, 116 680 / 116 680 décisions identiques | — |
+| Latence p50 / p95 / p99 | 0,05 / 0,17 / 0,38 ms | < 20 ms |
+| Débit sur 1 cœur | ~13 000 tx/s | 10k tx/s (en pic, tout le système) |
+
+Mesure sur un PC portable, 1 thread. Elle ne comprend ni le HTTP (FastAPI) ni la lecture Redis
+(~1,5 ms depuis Windows) : le budget de 20 ms laisse une large marge pour ces deux étapes, qui
+seront mesurées par le test de charge Locust (P95 < 80 ms de bout en bout).
