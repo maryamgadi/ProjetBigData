@@ -10,3 +10,4 @@ scikit-learn
 pyspark==3.5.3
 torch
 torch-geometric
+mlflow

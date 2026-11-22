@@ -1,9 +1,12 @@
 """Shared code for the LightGBM baseline (15) and the robustness test (16):
 data loading, features, training and metrics."""
 
+import hashlib
+import os
 from pathlib import Path
 
 import lightgbm as lgb
+import mlflow
 import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_score
@@ -12,6 +15,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "processed"
 MODEL_DIR = BASE_DIR / "models"
 REPORT_DIR = BASE_DIR / "reports"
+
+# MLflow : base SQLite + artefacts locaux (non versionnés). Interface :
+#   .venv\Scripts\mlflow ui --backend-store-uri sqlite:///mlflow.db   -> http://localhost:5000
+MLFLOW_DB = BASE_DIR / "mlflow.db"
+MLFLOW_ARTIFACTS = BASE_DIR / "mlruns"
+DEFAULT_EXPERIMENT = "paysim-fraud-detection"
 
 DTYPES = {
     "step": "int16",
@@ -153,3 +162,60 @@ def evaluate(y, proba, n_other):
         "at_2fa_threshold": metrics_at(y, proba, THRESHOLD_2FA, n_other),
         "at_refuse_threshold": metrics_at(y, proba, THRESHOLD_REFUSE, n_other),
     }
+
+
+# ---------------------------------------------------------------------------
+# MLflow tracking (auditabilité : quelles données, quels paramètres, quels résultats)
+# ---------------------------------------------------------------------------
+def setup_mlflow(experiment=DEFAULT_EXPERIMENT):
+    """Base SQLite locale par défaut ; MLFLOW_TRACKING_URI permet de viser un serveur."""
+    uri = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB.as_posix()}")
+    mlflow.set_tracking_uri(uri)
+    if mlflow.get_experiment_by_name(experiment) is None:
+        mlflow.create_experiment(experiment, artifact_location=MLFLOW_ARTIFACTS.resolve().as_uri())
+    mlflow.set_experiment(experiment)
+
+
+def file_fingerprint(path):
+    """Empreinte SHA-256 d'un fichier de données : prouve sur quelle version on a entraîné."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def log_dataset_tags(**datasets):
+    """Tags data.<nom>.* : chemin, taille, SHA-256 et lignes utilisées (TRANSFER/CASH_OUT)."""
+    for name, (filename, n_rows) in datasets.items():
+        path = DATA_DIR / filename
+        mlflow.set_tags({
+            f"data.{name}.path": str(path.relative_to(BASE_DIR)),
+            f"data.{name}.rows_used": n_rows,
+            f"data.{name}.bytes": path.stat().st_size,
+            f"data.{name}.sha256": file_fingerprint(path),
+        })
+    # Version Delta équivalente (même contenu que paysim_historical.csv, cf. src/13)
+    mlflow.set_tag("data.delta_table", "s3a://fraud-lakehouse/bronze/historical")
+
+
+def log_lgbm_params(params, features, feature_set):
+    mlflow.log_params({f"lgbm.{k}": v for k, v in params.items()})
+    mlflow.log_params({
+        "feature_set": feature_set,
+        "n_features": len(features),
+        "features": ",".join(features),
+        "threshold_2fa": THRESHOLD_2FA,
+        "threshold_refuse": THRESHOLD_REFUSE,
+    })
+
+
+def log_evaluation(results, prefix=""):
+    """Aplatit le dict d'evaluate() en métriques MLflow (ex. recall_at_0.60)."""
+    metrics = {f"{prefix}auc_roc": results["auc_roc"], f"{prefix}pr_auc": results["pr_auc"]}
+    for key in ("at_2fa_threshold", "at_refuse_threshold"):
+        m = results[key]
+        suffix = f"at_{m['threshold']:.2f}"
+        for name in ("recall", "precision", "fpr_all_transactions", "tp", "fp", "fn"):
+            metrics[f"{prefix}{name}_{suffix}"] = m[name]
+    mlflow.log_metrics(metrics)

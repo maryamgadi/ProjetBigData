@@ -26,3 +26,8 @@ models/
 checkpoints/
 tools/
 spark_log.txt
+
+# MLflow (base locale + artefacts, régénérables)
+mlflow.db
+mlruns/
+mlartifacts/

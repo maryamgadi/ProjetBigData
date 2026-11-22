@@ -1,0 +1,61 @@
+{
+  "feature_set": "pre_tx_v1",
+  "features": [
+    "type",
+    "hour",
+    "amount",
+    "oldbalanceOrg",
+    "oldbalanceDest",
+    "amountToBalanceOrig",
+    "emptiesOrig",
+    "destEmptyBefore"
+  ],
+  "auc_roc": 0.9842013980464704,
+  "pr_auc": 0.9201172762091196,
+  "at_2fa_threshold": {
+    "threshold": 0.6,
+    "tp": 2313,
+    "fp": 482,
+    "fn": 119,
+    "tn": 113766,
+    "recall": 0.9510690789473685,
+    "precision": 0.8275491949910555,
+    "fpr_transfer_cashout": 0.004218892234437365,
+    "fpr_all_transactions": 0.0017326848346939582
+  },
+  "at_refuse_threshold": {
+    "threshold": 0.85,
+    "tp": 2311,
+    "fp": 474,
+    "fn": 121,
+    "tn": 113774,
+    "recall": 0.9502467105263158,
+    "precision": 0.829802513464991,
+    "fpr_transfer_cashout": 0.004148869126811848,
+    "fpr_all_transactions": 0.0017039265801762162
+  },
+  "best_iteration": 7,
+  "scale_pos_weight": 23.77755684845406,
+  "decision_zones": {
+    "legit": {
+      "APPROVE": 113766,
+      "2FA": 8,
+      "REFUSE": 474
+    },
+    "fraud": {
+      "APPROVE": 119,
+      "2FA": 2,
+      "REFUSE": 2311
+    }
+  },
+  "feature_importance_gain": {
+    "oldbalanceDest": 240625611157.6953,
+    "amountToBalanceOrig": 26399986527.19922,
+    "oldbalanceOrg": 1502811193.4453125,
+    "hour": 440301052.26000977,
+    "amount": 412663563.8532715,
+    "destEmptyBefore": 12831709.0,
+    "emptiesOrig": 8367944.16015625,
+    "type": 2501344.80078125
+  }
+}

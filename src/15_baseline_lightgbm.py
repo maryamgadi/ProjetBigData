@@ -13,12 +13,15 @@ Run (from the repo root, Docker can stay stopped):
 import argparse
 import json
 
+import mlflow
+import mlflow.lightgbm
 import numpy as np
 import pandas as pd
 
 from fraud_model import (
     FEATURE_SETS, MODEL_DIR, REPORT_DIR, THRESHOLD_2FA, THRESHOLD_REFUSE,
-    chrono_split, evaluate, load, predict, train,
+    chrono_split, evaluate, load, log_dataset_tags, log_evaluation, log_lgbm_params,
+    predict, setup_mlflow, train,
 )
 
 
@@ -36,7 +39,19 @@ def main():
     train_df, valid_df = chrono_split(history)
     print(f"Train {len(train_df)} | Valid {len(valid_df)} | Test {len(test)}")
 
+    setup_mlflow()
+    with mlflow.start_run(run_name=f"baseline_lgbm_{args.features}") as run:
+        mlflow.set_tags({"model_family": "lightgbm", "stage": "baseline_week2"})
+        log_dataset_tags(train_history=("paysim_historical.csv", len(history)),
+                         test_stream=("paysim_streaming.csv", len(test)))
+        run_and_report(args, features, train_df, valid_df, test, n_other_test)
+        print(f"MLflow run: {run.info.run_id}")
+
+
+def run_and_report(args, features, train_df, valid_df, test, n_other_test):
     model, params = train(train_df, valid_df, features)
+    log_lgbm_params(params, features, args.features)
+    mlflow.log_metric("best_iteration", model.best_iteration)
 
     # --- Evaluation on the test set (future, never seen) ---
     y = test["isFraud"].to_numpy()
@@ -79,6 +94,12 @@ def main():
     report_path.write_text(json.dumps(results, indent=2))
     print(f"\nModel: {model_path}")
     print(f"Metrics: {report_path}")
+
+    # --- MLflow : métriques, rapport JSON et modèle versionné ---
+    log_evaluation(results)
+    mlflow.log_artifact(str(report_path), artifact_path="reports")
+    mlflow.log_text(zone_table.to_string(), "reports/decision_zones.txt")
+    mlflow.lightgbm.log_model(model, name="model")
 
 
 if __name__ == "__main__":
