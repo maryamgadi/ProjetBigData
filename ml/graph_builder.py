@@ -252,6 +252,7 @@ def build_paysim_graph(file_path: str = "data/paysim_sample.csv",
         y=y_edge
     )
     graph.y_node = y_node  # label au niveau nœud
+    graph.id_to_node = id_to_node
     graph.num_nodes = x.shape[0]
 
     metadata = {
