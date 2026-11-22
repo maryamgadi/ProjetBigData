@@ -26,8 +26,11 @@ import json
 import numpy as np
 import pandas as pd
 
+import mlflow
+
 from fraud_model import (
-    FEATURE_SETS, REPORT_DIR, add_features, chrono_split, evaluate, load, predict, train,
+    FEATURE_SETS, REPORT_DIR, add_features, chrono_split, evaluate, load, log_dataset_tags,
+    log_evaluation, predict, setup_mlflow, train,
 )
 
 NOISE_LEVELS = [0.0, 0.001, 0.01, 0.05, 0.10]   # max share of the balance left behind
@@ -61,10 +64,30 @@ def summarize(model_name, level, scenario, metrics):
     }
 
 
+def log_child_run(model_name, level, scenario, metrics):
+    """Un run MLflow imbriqué par (modèle, scénario, niveau de bruit) : comparables dans l'UI."""
+    with mlflow.start_run(run_name=f"{model_name} | {scenario} | noise {level:.1%}", nested=True):
+        mlflow.log_params({"feature_set": model_name, "scenario": scenario, "noise_level": level})
+        log_evaluation(metrics)
+
+
 def main():
     print("Loading data...")
     history, _ = load("paysim_historical.csv")
     test, n_other = load("paysim_streaming.csv")
+
+    setup_mlflow()
+    with mlflow.start_run(run_name="robustness_noisy_amounts") as run:
+        mlflow.set_tags({"model_family": "lightgbm", "stage": "robustness_week2"})
+        mlflow.log_params({"noise_levels": ",".join(map(str, NOISE_LEVELS)),
+                           "models": ",".join(MODELS), "seed": SEED})
+        log_dataset_tags(train_history=("paysim_historical.csv", len(history)),
+                         test_stream=("paysim_streaming.csv", len(test)))
+        run_experiment(history, test, n_other)
+        print(f"MLflow run: {run.info.run_id}")
+
+
+def run_experiment(history, test, n_other):
     train_clean, valid_clean = chrono_split(history)
     y = test["isFraud"].to_numpy()
 
@@ -74,6 +97,8 @@ def main():
              for lvl, t in noisy_tests.items()}
     print("Share of frauds still draining the account exactly:",
           {lvl: f"{v:.1%}" for lvl, v in exact.items()})
+    for i, lvl in enumerate(NOISE_LEVELS):
+        mlflow.log_metric("frauds_still_exact", exact[lvl], step=i)
 
     rows = []
     for name in MODELS:
@@ -87,6 +112,7 @@ def main():
             # A: trained on clean data, attacked in production
             metrics = evaluate(y, predict(clean_model, noisy_test, features), n_other)
             rows.append(summarize(name, level, "A_attack_test_only", metrics))
+            log_child_run(name, level, "A_attack_test_only", metrics)
 
             # B: retrained on data where frauds already leave money behind
             if level > 0:
@@ -95,6 +121,7 @@ def main():
                 model_b, _ = train(train_noisy, valid_noisy, features, verbose=False)
                 metrics = evaluate(y, predict(model_b, noisy_test, features), n_other)
                 rows.append(summarize(name, level, "B_retrained_on_noisy", metrics))
+                log_child_run(name, level, "B_retrained_on_noisy", metrics)
                 del train_noisy, valid_noisy
 
             print(f"  noise {level:>5.1%} done")
@@ -117,6 +144,8 @@ def main():
     (REPORT_DIR / "robustness_noisy_amounts.json").write_text(json.dumps(
         {"noise_levels": NOISE_LEVELS, "frauds_still_exact": exact, "results": rows}, indent=2))
     print(f"\nSaved: {REPORT_DIR / 'robustness_noisy_amounts.csv'}")
+    mlflow.log_artifact(str(REPORT_DIR / "robustness_noisy_amounts.csv"), artifact_path="reports")
+    mlflow.log_artifact(str(REPORT_DIR / "robustness_noisy_amounts.json"), artifact_path="reports")
 
 
 if __name__ == "__main__":

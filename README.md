@@ -122,10 +122,33 @@ Lecture :
 
 Résultats complets : `reports/robustness_noisy_amounts.csv` / `.json`.
 
+### 5. Suivi des expériences : MLflow
+
+Chaque exécution des scripts 15 et 16 crée un run dans l'expérience `paysim-fraud-detection`
+(base locale `mlflow.db`, artefacts dans `mlruns/`, non versionnés) :
+
+| Enregistré | Contenu |
+|---|---|
+| Paramètres | jeu de features, liste des features, hyperparamètres LightGBM (`lgbm.*`), seuils 0,60 / 0,85 |
+| Métriques | AUC-ROC, PR-AUC, rappel / précision / FPR / TP / FP / FN à chaque seuil, `best_iteration` |
+| Tags données | chemin, lignes utilisées, taille et **empreinte SHA-256** des CSV d'entraînement et de test, table Delta correspondante |
+| Artefacts | rapport JSON, zones de décision, **modèle LightGBM** rechargeable (`runs:/<id>/model`) |
+
+Le test de robustesse crée un run parent et un run enfant par (modèle, scénario, niveau de bruit),
+comparables côte à côte dans l'interface.
+
+```bash
+.venv\Scripts\mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+puis http://localhost:5000. Pour viser un serveur MLflow partagé : variable `MLFLOW_TRACKING_URI`.
+
+Auditabilité (exigence du CDC) : l'empreinte SHA-256 identifie la version exacte des données de
+chaque modèle ; la même donnée est versionnée dans Delta (`bronze/historical`, Time Travel).
+
 `post_tx` n'est pas utilisable : le CDC note la transaction **avant validation**, les soldes
 après transaction ne sont pas encore connus et, dans PaySim, ils trahissent la fraude.
 
-### 5. Démo de bout en bout (livrable semaine 1)
+### 6. Démo de bout en bout (livrable semaine 1)
 
 ```bash
 # Terminal 1 : job streaming (tourne en continu)
