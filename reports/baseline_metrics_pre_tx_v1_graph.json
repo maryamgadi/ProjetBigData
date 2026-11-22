@@ -1,0 +1,69 @@
+{
+  "feature_set": "pre_tx_v1_graph",
+  "features": [
+    "type",
+    "hour",
+    "amount",
+    "oldbalanceOrg",
+    "oldbalanceDest",
+    "amountToBalanceOrig",
+    "emptiesOrig",
+    "destEmptyBefore",
+    "g_dest_in_count",
+    "g_dest_in_amount_log",
+    "g_dest_out_count",
+    "g_orig_in_count",
+    "g_orig_out_count"
+  ],
+  "auc_roc": 0.9992496089704668,
+  "pr_auc": 0.9766555577006186,
+  "at_2fa_threshold": {
+    "threshold": 0.6,
+    "tp": 2424,
+    "fp": 268,
+    "fn": 8,
+    "tn": 113980,
+    "recall": 0.9967105263157895,
+    "precision": 0.9004457652303121,
+    "fpr_transfer_cashout": 0.0023457741054548,
+    "fpr_all_transactions": 0.0009634015263443585
+  },
+  "at_refuse_threshold": {
+    "threshold": 0.85,
+    "tp": 2424,
+    "fp": 268,
+    "fn": 8,
+    "tn": 113980,
+    "recall": 0.9967105263157895,
+    "precision": 0.9004457652303121,
+    "fpr_transfer_cashout": 0.0023457741054548,
+    "fpr_all_transactions": 0.0009634015263443585
+  },
+  "best_iteration": 1,
+  "scale_pos_weight": 23.77755684845406,
+  "decision_zones": {
+    "legit": {
+      "APPROVE": 113980,
+      "REFUSE": 268
+    },
+    "fraud": {
+      "APPROVE": 8,
+      "REFUSE": 2424
+    }
+  },
+  "feature_importance_gain": {
+    "emptiesOrig": 19584400.0,
+    "oldbalanceOrg": 11535362.622314453,
+    "amountToBalanceOrig": 5205010.0,
+    "amount": 2673630.9497070312,
+    "hour": 150145.63818359375,
+    "oldbalanceDest": 121701.21997070312,
+    "type": 0.0,
+    "destEmptyBefore": 0.0,
+    "g_dest_in_count": 0.0,
+    "g_dest_in_amount_log": 0.0,
+    "g_dest_out_count": 0.0,
+    "g_orig_in_count": 0.0,
+    "g_orig_out_count": 0.0
+  }
+}

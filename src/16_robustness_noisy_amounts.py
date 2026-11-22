@@ -14,13 +14,18 @@ Two scenarios per noise level:
 Legitimate transactions are never modified, so the false-positive rate only
 moves through the model, not the data.
 
-Models compared: pre_tx (official) and pre_tx_v1 (ablation, no exact-equality flag).
+Models compared (default): pre_tx (official), pre_tx_v1 (ablation, no exact-equality
+flag) and their *_graph versions (+ point-in-time graph features, src/graph_features.py).
+The graph features are computed from the original transactions: only the current
+fraud's amount is perturbed, not the amounts of earlier transactions.
 Outputs: reports/robustness_noisy_amounts.csv and .json
 
-Run (from the repo root, Docker can stay stopped, ~5 min):
+Run (from the repo root, Docker can stay stopped, ~12 min with the 4 models):
   .venv\\Scripts\\python src\\16_robustness_noisy_amounts.py
+  .venv\\Scripts\\python src\\16_robustness_noisy_amounts.py --models pre_tx pre_tx_graph
 """
 
+import argparse
 import json
 
 import numpy as np
@@ -30,11 +35,11 @@ import mlflow
 
 from fraud_model import (
     FEATURE_SETS, REPORT_DIR, add_features, chrono_split, evaluate, load, log_dataset_tags,
-    log_evaluation, predict, setup_mlflow, train,
+    log_evaluation, predict, setup_mlflow, train, uses_graph,
 )
 
 NOISE_LEVELS = [0.0, 0.001, 0.01, 0.05, 0.10]   # max share of the balance left behind
-MODELS = ["pre_tx", "pre_tx_v1"]
+MODELS = ["pre_tx", "pre_tx_graph", "pre_tx_v1", "pre_tx_v1_graph"]
 SEED = 42
 
 
@@ -72,22 +77,28 @@ def log_child_run(model_name, level, scenario, metrics):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Robustness test with noisy fraud amounts")
+    parser.add_argument("--models", nargs="+", choices=FEATURE_SETS, default=MODELS)
+    args = parser.parse_args()
+    models = args.models
+
     print("Loading data...")
-    history, _ = load("paysim_historical.csv")
-    test, n_other = load("paysim_streaming.csv")
+    graph = any(uses_graph(FEATURE_SETS[m]) for m in models)
+    history, _ = load("paysim_historical.csv", graph=graph)
+    test, n_other = load("paysim_streaming.csv", graph=graph)
 
     setup_mlflow()
     with mlflow.start_run(run_name="robustness_noisy_amounts") as run:
-        mlflow.set_tags({"model_family": "lightgbm", "stage": "robustness_week2"})
+        mlflow.set_tags({"model_family": "lightgbm", "stage": "robustness"})
         mlflow.log_params({"noise_levels": ",".join(map(str, NOISE_LEVELS)),
-                           "models": ",".join(MODELS), "seed": SEED})
+                           "models": ",".join(models), "seed": SEED})
         log_dataset_tags(train_history=("paysim_historical.csv", len(history)),
                          test_stream=("paysim_streaming.csv", len(test)))
-        run_experiment(history, test, n_other)
+        run_experiment(history, test, n_other, models)
         print(f"MLflow run: {run.info.run_id}")
 
 
-def run_experiment(history, test, n_other):
+def run_experiment(history, test, n_other, models):
     train_clean, valid_clean = chrono_split(history)
     y = test["isFraud"].to_numpy()
 
@@ -101,7 +112,7 @@ def run_experiment(history, test, n_other):
         mlflow.log_metric("frauds_still_exact", exact[lvl], step=i)
 
     rows = []
-    for name in MODELS:
+    for name in models:
         features = FEATURE_SETS[name]
         print(f"\n=== Model {name} ===")
         clean_model, _ = train(train_clean, valid_clean, features, verbose=False)

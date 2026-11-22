@@ -4,11 +4,18 @@ import argparse
 import pandas as pd
 from kafka import KafkaProducer
 
+from anonymize import get_key, pseudonymize
+
 def json_serializer(data):
     return json.dumps(data).encode('utf-8')
 
-def run_producer(file_path="data/paysim_sample.csv", topic="financial-transactions", delay=0.01):
+def run_producer(file_path="data/paysim_sample.csv", topic="financial-transactions", delay=0.01,
+                 anonymize=False):
     print(f"Connexion au broker Kafka sur localhost:9092...")
+    # RGPD : pseudonymisation des identifiants de comptes avant envoi (clé ANON_KEY)
+    key_bytes = get_key() if anonymize else None
+    if anonymize:
+        print("Identifiants pseudonymisés (HMAC-SHA256, clé ANON_KEY)")
     
     # Initialisation du producteur Kafka
     producer = KafkaProducer(
@@ -39,6 +46,9 @@ def run_producer(file_path="data/paysim_sample.csv", topic="financial-transactio
             "newbalanceDest": float(row['newbalanceDest']),
             "isFraud": int(row['isFraud'])
         }
+        if key_bytes:
+            transaction["nameOrig"] = pseudonymize(transaction["nameOrig"], key_bytes)
+            transaction["nameDest"] = pseudonymize(transaction["nameDest"], key_bytes)
 
         # CRUCIAL : La clé est nameOrig (le compte émetteur) pour le partitionnement
         key = transaction["nameOrig"]
@@ -61,6 +71,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Producteur Kafka PaySim")
     parser.add_argument("--file", default="data/paysim_sample.csv", help="Chemin du CSV")
     parser.add_argument("--delay", type=float, default=0.005, help="Délai entre messages (en sec, 0 pour max débit)")
+    parser.add_argument("--anonymize", action="store_true",
+                        help="Pseudonymise nameOrig/nameDest (HMAC-SHA256, clé dans la variable ANON_KEY)")
     args = parser.parse_args()
 
-    run_producer(file_path=args.file, delay=args.delay)
+    run_producer(file_path=args.file, delay=args.delay, anonymize=args.anonymize)

@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_score
 
+from graph_features import GRAPH_FEATURES, attach_embeddings, attach_graph_features
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "processed"
 MODEL_DIR = BASE_DIR / "models"
@@ -61,6 +63,14 @@ FEATURE_SETS = {
         "errorBalanceOrig", "errorBalanceDest", "origEmptied", "destZeroBefore",
     ],
 }
+# Fusion « graphe + LightGBM » : mêmes features + features de graphe point-in-time
+# (src/graph_features.py). Les embeddings GraphSAGE s'ajoutent avec --embeddings (script 15).
+FEATURE_SETS["pre_tx_graph"] = FEATURE_SETS["pre_tx"] + GRAPH_FEATURES
+FEATURE_SETS["pre_tx_v1_graph"] = FEATURE_SETS["pre_tx_v1"] + GRAPH_FEATURES
+
+
+def uses_graph(features):
+    return any(f in GRAPH_FEATURES for f in features)
 
 # Decision thresholds from the spec
 THRESHOLD_2FA = 0.60
@@ -96,9 +106,16 @@ def add_features(df):
     return df
 
 
-def load(filename):
+def load(filename, graph=False, embeddings=None):
+    """Charge un fichier du split. graph=True ajoute les features de graphe point-in-time ;
+    embeddings=<parquet> ajoute les embeddings GNN de l'émetteur et du destinataire."""
     df, n_other = load_raw(filename)
-    return add_features(df), n_other
+    df = add_features(df)
+    if graph:
+        df = attach_graph_features(df, filename, DATA_DIR)
+    if embeddings:
+        df = attach_embeddings(df, filename, DATA_DIR, embeddings)
+    return df, n_other
 
 
 def chrono_split(history, quantile=0.85):
