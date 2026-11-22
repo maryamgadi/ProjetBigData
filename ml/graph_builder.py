@@ -28,7 +28,10 @@ from torch_geometric.data import Data
 # Types de transactions connus dans PaySim
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
 RISKY_TYPES = {"TRANSFER", "CASH_OUT"}
-MAX_STEP_NORMALIZATION = 744.0  # PaySim simule 744 heures (30 jours)
+# Dernier step de la période d'historique (même coupure que 03_split_paysim.py).
+# Le graphe ne doit contenir QUE l'historique : sinon les degrés, volumes et labels
+# des nœuds incluent des transactions de la période de test (fuite temporelle).
+HISTORY_MAX_STEP = 520
 
 
 def load_dataset(file_path: str, nrows: Optional[int] = None) -> pd.DataFrame:
@@ -160,12 +163,16 @@ def extract_edges_and_features(df: pd.DataFrame,
       - edge_index [2, E] : tenseur des indices [source, destination]
       - edge_attr [E, F] : caractéristiques de chaque transaction :
           1. amount_log : log1p(amount)
-          2. step_norm : step normalisé (0..1)
+          2. hour_norm : heure de la journée (step % 24) / 23
           3-7. One-Hot encoding des types (CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER)
           8. is_risky_type : 1 si TRANSFER ou CASH_OUT
-          9. orig_balance_error : écart de solde émetteur
-         10. is_drained : 1 si solde émetteur vidé
+          9. amount_to_balance_log : log1p(amount / (oldbalanceOrg + 1))
+         10. is_account_drained : 1 si amount == oldbalanceOrg (vidage exact du compte)
       - y_edge [E] : label de fraude transactionnelle (isFraud)
+
+    Anti-fuite : aucune feature n'utilise newbalanceOrig / newbalanceDest (soldes connus
+    seulement APRÈS validation, alors que le score est produit avant), ni le step brut
+    (les steps de la période de test ne sont jamais vus à l'entraînement).
     """
     print("[4/5] Construction des arêtes (edge_index) et de leurs attributs (edge_attr)...")
     start = time.perf_counter()
@@ -177,7 +184,8 @@ def extract_edges_and_features(df: pd.DataFrame,
 
     # edge_attr
     amount_log = np.log1p(df["amount"].values).astype(np.float32)
-    step_norm = (df["step"].values / MAX_STEP_NORMALIZATION).astype(np.float32)
+    # Heure de la journée plutôt que step brut : généralise à la période de test
+    hour_norm = ((df["step"].values % 24) / 23.0).astype(np.float32)
 
     # One-hot encoding du type
     type_dummies = pd.get_dummies(df["type"])
@@ -188,32 +196,32 @@ def extract_edges_and_features(df: pd.DataFrame,
 
     is_risky = df["type"].isin(RISKY_TYPES).values.astype(np.float32)
 
-    # Écart de solde émetteur si les colonnes de solde sont présentes
-    if "oldbalanceOrg" in df.columns and "newbalanceOrig" in df.columns:
-        expected_new = np.where(
-            df["type"] == "CASH_IN",
-            df["oldbalanceOrg"] + df["amount"],
-            df["oldbalanceOrg"] - df["amount"]
-        )
-        bal_err = np.log1p(np.abs(expected_new - df["newbalanceOrig"].values)).astype(np.float32)
-        drained = ((df["oldbalanceOrg"].values > 0) & (df["newbalanceOrig"].values == 0)).astype(np.float32)
+    # Rapport montant / solde AVANT transaction (pas de solde après : fuite)
+    if "oldbalanceOrg" in df.columns:
+        amount = df["amount"].values
+        old_balance = df["oldbalanceOrg"].values
+        is_debit = (df["type"] != "CASH_IN").values
+        amount_to_balance = np.log1p(amount / (old_balance + 1.0)).astype(np.float32)
+        # Vidage exact du compte (97,6 % des fraudes) ≠ découvert (montant > solde, légitime)
+        drained = (is_debit & (old_balance > 0)
+                   & (np.abs(amount - old_balance) < 0.01)).astype(np.float32)
     else:
-        bal_err = np.zeros(len(df), dtype=np.float32)
+        amount_to_balance = np.zeros(len(df), dtype=np.float32)
         drained = np.zeros(len(df), dtype=np.float32)
 
     edge_feats = np.column_stack([
         amount_log,
-        step_norm,
+        hour_norm,
         type_encoded,
         is_risky,
-        bal_err,
+        amount_to_balance,
         drained
     ])
 
     edge_feature_names = (
-        ["amount_log", "step_norm"]
+        ["amount_log", "hour_norm"]
         + [f"type_{t}" for t in TRANSACTION_TYPES]
-        + ["is_risky_type", "orig_balance_error_log", "is_account_drained"]
+        + ["is_risky_type", "amount_to_balance_log", "is_account_drained"]
     )
 
     edge_attr = torch.tensor(edge_feats, dtype=torch.float32)
@@ -227,10 +235,19 @@ def extract_edges_and_features(df: pd.DataFrame,
     return edge_index, edge_attr, y_edge, edge_feature_names
 
 
-def build_paysim_graph(file_path: str = "data/paysim_sample.csv", 
-                       nrows: Optional[int] = None) -> Tuple[Data, Dict]:
-    """Assemble et retourne l'objet torch_geometric.data.Data et ses métadonnées."""
+def build_paysim_graph(file_path: str = "data/paysim_sample.csv",
+                       nrows: Optional[int] = None,
+                       max_step: Optional[int] = HISTORY_MAX_STEP) -> Tuple[Data, Dict]:
+    """Assemble et retourne l'objet torch_geometric.data.Data et ses métadonnées.
+
+    max_step : ne garde que les transactions avec step <= max_step (historique).
+               None = toutes les transactions (à éviter pour entraîner : fuite temporelle).
+    """
     df = load_dataset(file_path, nrows=nrows)
+    if max_step is not None:
+        before = len(df)
+        df = df[df["step"] <= max_step].reset_index(drop=True)
+        print(f"      Coupure temporelle step <= {max_step} : {len(df):,} / {before:,} transactions gardées")
     node_to_id, id_to_node = build_node_mappings(df)
     x, node_feature_names = extract_node_features(df, node_to_id, id_to_node)
     edge_index, edge_attr, y_edge, edge_feature_names = extract_edges_and_features(df, node_to_id)
@@ -264,7 +281,8 @@ def build_paysim_graph(file_path: str = "data/paysim_sample.csv",
         "fraud_edge_ratio": float((y_edge == 1).sum().item() / max(1, len(y_edge))),
         "num_fraud_nodes": int((y_node == 1).sum().item()),
         "source_file": file_path,
-        "sample_size": len(df)
+        "sample_size": len(df),
+        "max_step": max_step,
     }
 
     return graph, metadata
@@ -307,9 +325,13 @@ def main() -> None:
     parser.add_argument("--nrows", type=int, default=None, help="Nombre max de lignes à charger")
     parser.add_argument("--output", default="data/paysim_graph.pt", help="Chemin de sortie du graphe PyG (.pt)")
     parser.add_argument("--meta", default="data/paysim_graph_metadata.json", help="Chemin de sortie des métadonnées (.json)")
+    parser.add_argument("--max-step", type=int, default=HISTORY_MAX_STEP,
+                        help=f"Ne garder que step <= max-step (historique, défaut {HISTORY_MAX_STEP}). "
+                             "-1 = tout garder (fuite temporelle, déconseillé pour l'entraînement)")
     args = parser.parse_args()
 
-    graph, metadata = build_paysim_graph(file_path=args.input, nrows=args.nrows)
+    max_step = None if args.max_step < 0 else args.max_step
+    graph, metadata = build_paysim_graph(file_path=args.input, nrows=args.nrows, max_step=max_step)
     save_graph(graph, metadata, output_graph_path=args.output, output_meta_path=args.meta)
     print_graph_summary(graph, metadata)
 

@@ -15,8 +15,6 @@
   ],
   "auc_roc": 0.999583028517832,
   "pr_auc": 0.9993263209917144,
-  "best_iteration": 53,
-  "scale_pos_weight": 23.77755684845406,
   "at_2fa_threshold": {
     "threshold": 0.6,
     "tp": 2407,
@@ -39,6 +37,8 @@
     "fpr_transfer_cashout": 4.3764442265947765e-05,
     "fpr_all_transactions": 1.7973909073588778e-05
   },
+  "best_iteration": 53,
+  "scale_pos_weight": 23.77755684845406,
   "decision_zones": {
     "legit": {
       "APPROVE": 114237,

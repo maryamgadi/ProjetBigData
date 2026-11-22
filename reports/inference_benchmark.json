@@ -1,0 +1,26 @@
+{
+  "model": "baseline_lgbm_pre_tx.txt",
+  "consistency": {
+    "n": 116680,
+    "max_abs_score_diff": 0.0,
+    "same_decision": 116680,
+    "all_decisions_equal": true
+  },
+  "latency": {
+    "n": 10000,
+    "mean_ms": 0.07624364987714216,
+    "p50_ms": 0.053499999921768904,
+    "p95_ms": 0.1714999962132424,
+    "p99_ms": 0.37560897879302524,
+    "max_ms": 1.4662000176031142,
+    "throughput_tx_per_s_one_core": 13115.846389979815,
+    "target_ms": 20.0,
+    "p99_under_target": true
+  },
+  "machine": {
+    "python": "3.10.11",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "system": "Windows 10"
+  },
+  "scope": "features + LightGBM + decision, one transaction per call; excludes HTTP and Redis"
+}
