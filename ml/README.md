@@ -34,11 +34,23 @@ Sauvegarde sous data/paysim_graph.pt (Prêt pour GraphSAGE en Semaine 3)
 
 ### Arêtes / Transactions (`edge_attr` : 10 dimensions)
 1. `amount_log` : $\log(1 + \text{amount})$
-2. `step_norm` : horodatage PaySim normalisé ($[0, 1]$)
+2. `hour_norm` : heure de la journée, $(\text{step} \bmod 24) / 23$
 3-7. Encodage One-Hot des types : `CASH_IN`, `CASH_OUT`, `DEBIT`, `PAYMENT`, `TRANSFER`
 8. `is_risky_type` : 1 si `TRANSFER` ou `CASH_OUT`
-9. `orig_balance_error_log` : écart entre solde attendu et solde réel émetteur
-10. `is_account_drained` : 1 si la transaction a vidé le compte de l'émetteur
+9. `amount_to_balance_log` : $\log(1 + \text{amount} / (\text{oldbalanceOrg} + 1))$
+10. `is_account_drained` : 1 si `amount == oldbalanceOrg` (le compte est vidé exactement)
+
+### Anti-fuite de données
+- **Coupure temporelle** : par défaut le graphe ne contient que l'historique (`step <= 520`,
+  même coupure que `03_split_paysim.py`). Sinon les degrés, volumes et labels des nœuds
+  incluraient des transactions de la période de test et GraphSAGE « verrait le futur ».
+- **Pas de soldes après transaction** (`newbalanceOrig`, `newbalanceDest`) : le score est
+  produit avant validation, ces valeurs n'existent pas encore. Dans PaySim elles trahissent
+  la fraude (AUC artificielle de 1,0 avec la baseline LightGBM).
+- **Pas de step brut** : les steps de test (521–743) ne sont jamais vus à l'entraînement ;
+  seule l'heure de la journée généralise.
+- Pour la période de test, un compte absent du graphe d'historique n'a pas d'embedding
+  (démarrage à froid) : prévoir un vecteur nul + un indicateur `known_in_graph`.
 
 ### Cibles / Labels
 - `data.y` : label de fraude transactionnelle (`isFraud` sur chaque arête).
@@ -58,6 +70,12 @@ python ml/graph_builder.py --input data/paysim_sample.csv
 * `--nrows` : nombre de lignes à charger (pour tests rapides).
 * `--output` : chemin de sortie du fichier PyG (défaut : `data/paysim_graph.pt`).
 * `--meta` : chemin du résumé JSON (défaut : `data/paysim_graph_metadata.json`).
+* `--max-step` : dernier step gardé (défaut `520` = historique ; `-1` = tout, déconseillé).
+
+### Graphe complet d'historique (pour GraphSAGE) :
+```powershell
+python ml/graph_builder.py --input data/processed/paysim_historical.csv
+```
 
 ### Lancer les tests unitaires :
 ```powershell

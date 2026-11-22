@@ -19,7 +19,7 @@ producer.py ──► Kafka (financial-transactions) ──► Spark Structured 
 
 | Clé | Contenu | TTL |
 | --- | --- | --- |
-| `account:{nameOrig}` | `last_type, last_amount, last_step, last_dest, last_balance_error_orig, last_event_time` | 24 h |
+| `account:{nameOrig}` | `last_type, last_amount, last_step, last_dest, last_remaining_orig, last_event_time` | 24 h |
 | `features:5m:{nameOrig}` | `tx_count, amount_sum, amount_max, amount_avg, risky_tx_count, drained_count, distinct_dest_count, window_start, window_end, last_event_time` | 5 min |
 | `features:1h:{nameOrig}` | idem | 1 h |
 | `features:24h:{nameOrig}` | idem | 24 h |
@@ -59,4 +59,12 @@ Tests : `python -m unittest discover tests -v`
   aller-retour ; dans le réseau Docker (API en conteneur), on est bien sous 1 ms.
 - Pour rejouer tout le topic : `STARTING_OFFSETS=earliest` et supprimer `checkpoints/`.
 - `isFraud` n'est jamais utilisé comme feature (fuite de label).
+- **Pas de soldes après transaction** (`newbalanceOrig`, `newbalanceDest`) : ils n'existent
+  qu'après validation, alors que le score doit être produit avant. Dans PaySim un `nameOrig`
+  n'apparaît presque qu'une fois, donc les agrégats d'un compte contiennent souvent la
+  transaction à scorer elle-même : utiliser ces soldes donnerait la réponse au modèle.
+  `drained_count` compte donc les transactions où `amount == oldbalanceOrg` (vidage exact),
+  et `last_remaining_orig = oldbalanceOrg - amount`.
+- **Point-in-time** : l'API doit lire les features Redis *avant* que la transaction à
+  scorer soit ingérée par ce job (sinon elle se voit elle-même dans `tx_count` et les sommes).
 

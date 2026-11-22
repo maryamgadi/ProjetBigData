@@ -27,7 +27,7 @@ import redis_sink as rs  # noqa: E402
 # ---------------------------------------------------------------------------
 # Étape 1 : Dépendances & configuration
 # ---------------------------------------------------------------------------
-SPARK_VERSION = "3.5.3"  # doit correspondre à pyspark dans requirements.txt
+SPARK_VERSION = "3.5.1"  # = pyspark de requirements.txt et image apache/spark:3.5.1 du compose
 SCALA_VERSION = "2.12"
 KAFKA_PACKAGE = f"org.apache.spark:spark-sql-kafka-0-10_{SCALA_VERSION}:{SPARK_VERSION}"
 
@@ -73,10 +73,10 @@ TRANSACTION_SCHEMA = StructType([
     StructField("amount", DoubleType()),
     StructField("nameOrig", StringType()),
     StructField("oldbalanceOrg", DoubleType()),
-    StructField("newbalanceOrig", DoubleType()),
+    StructField("newbalanceOrig", DoubleType()),   # lu mais JAMAIS utilisé (post-transaction)
     StructField("nameDest", StringType()),
     StructField("oldbalanceDest", DoubleType()),
-    StructField("newbalanceDest", DoubleType()),
+    StructField("newbalanceDest", DoubleType()),   # lu mais JAMAIS utilisé (post-transaction)
     StructField("isFraud", IntegerType()),  # label : jamais utilisé comme feature
 ])
 
@@ -139,19 +139,28 @@ def read_transactions(spark: SparkSession) -> DataFrame:
         .filter(F.col("nameOrig").isNotNull() & F.col("amount").isNotNull())
     )
 
-    # Écart entre le solde attendu et le solde réel de l'émetteur (signal fort sur PaySim)
-    expected_new_balance = F.when(
-        F.col("type") == "CASH_IN", F.col("oldbalanceOrg") + F.col("amount")
-    ).otherwise(F.col("oldbalanceOrg") - F.col("amount"))
+    # Pas de fuite : aucune feature n'utilise newbalanceOrig / newbalanceDest.
+    # Ces soldes n'existent qu'APRÈS validation de la transaction ; or dans PaySim un
+    # nameOrig n'apparaît presque qu'une fois (6,35 M comptes pour 6,36 M lignes), donc
+    # les agrégats d'un compte contiennent souvent la transaction à scorer elle-même.
+    # Tout est calculé à partir de ce qui est connu AVANT validation (montant, solde avant).
+    is_debit = F.col("type") != "CASH_IN"
+    remaining_orig = F.when(
+        is_debit, F.col("oldbalanceOrg") - F.col("amount")
+    ).otherwise(F.col("oldbalanceOrg") + F.col("amount"))
 
     return (
         tx
         .withColumn("is_risky_type", F.col("type").isin(*RISKY_TYPES).cast("int"))
+        # Vide le compte EXACTEMENT (montant == solde avant) : 97,6 % des fraudes PaySim.
+        # Différent de « montant > solde » (découvert), qui est un comportement légitime.
         .withColumn(
             "is_account_drained",
-            ((F.col("oldbalanceOrg") > 0) & (F.col("newbalanceOrig") == 0)).cast("int"),
+            (is_debit & (F.col("oldbalanceOrg") > 0)
+             & (F.abs(F.col("amount") - F.col("oldbalanceOrg")) < 0.01)).cast("int"),
         )
-        .withColumn("balance_error_orig", expected_new_balance - F.col("newbalanceOrig"))
+        # Solde restant attendu après la transaction, calculé sans le solde réel
+        .withColumn("remaining_orig", remaining_orig)
     )
 
 
@@ -222,7 +231,7 @@ def write_last_transaction(batch_df: DataFrame, batch_id: int) -> None:
             F.round("amount", 2).alias("last_amount"),
             F.col("step").alias("last_step"),
             F.col("nameDest").alias("last_dest"),
-            F.round("balance_error_orig", 2).alias("last_balance_error_orig"),
+            F.round("remaining_orig", 2).alias("last_remaining_orig"),
             F.col("event_time").alias("last_event_time"),
         )
     )
