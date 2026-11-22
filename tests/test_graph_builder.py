@@ -71,6 +71,40 @@ class TestGraphBuilder(unittest.TestCase):
         self.assertEqual(y_edge.shape[0], 4)
         self.assertEqual((y_edge == 1).sum().item(), 2)  # 2 fraudes
 
+    def test_edge_features_ignore_post_transaction_balances(self):
+        """Anti-fuite : changer les soldes APRÈS transaction ne change aucune feature d'arête."""
+        node_to_id, _ = gb.build_node_mappings(self.sample_data)
+        _, attr_ref, _, names = gb.extract_edges_and_features(self.sample_data, node_to_id)
+
+        altered = self.sample_data.copy()
+        altered["newbalanceOrig"] = [123.0, 456.0, 789.0, 0.0]
+        altered["newbalanceDest"] = [9.0, 8.0, 7.0, 6.0]
+        _, attr_altered, _, _ = gb.extract_edges_and_features(altered, node_to_id)
+
+        self.assertTrue(torch.equal(attr_ref, attr_altered))
+        self.assertNotIn("step_norm", names)
+
+    def test_drained_means_exact_balance(self):
+        """is_account_drained = montant == solde avant (pas montant > solde)."""
+        data = self.sample_data.copy()
+        data.loc[3, "amount"] = 5000.0          # découvert : 5000 > 900, légitime
+        node_to_id, _ = gb.build_node_mappings(data)
+        _, attr, _, names = gb.extract_edges_and_features(data, node_to_id)
+        drained = attr[:, names.index("is_account_drained")].tolist()
+        # tx 2 et 3 : 50000 == 50000 -> vidage exact ; tx 4 : découvert -> 0
+        self.assertEqual(drained, [0.0, 1.0, 1.0, 0.0])
+
+    def test_max_step_keeps_history_only(self):
+        """Coupure temporelle : les transactions après max_step sont exclues du graphe."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = os.path.join(tmpdir, "test_paysim.csv")
+            self.sample_data.to_csv(csv_path, index=False)
+
+            graph, meta = gb.build_paysim_graph(file_path=csv_path, max_step=2)
+            self.assertEqual(graph.edge_index.shape[1], 2)       # steps 1 et 2 seulement
+            self.assertEqual(meta["max_step"], 2)
+            self.assertEqual(meta["num_fraud_edges"], 1)          # la fraude du step 3 est exclue
+
     def test_build_and_save_graph(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = os.path.join(tmpdir, "test_paysim.csv")

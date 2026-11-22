@@ -51,7 +51,7 @@ WINDOW_FEATURES = (
     "amount_max",           # plus gros montant
     "amount_avg",           # montant moyen
     "risky_tx_count",       # nb de TRANSFER / CASH_OUT
-    "drained_count",        # nb de transactions qui vident le compte (solde -> 0)
+    "drained_count",        # nb de transactions dont le montant == solde avant (vidage exact)
     "distinct_dest_count",  # nb (approx.) de bénéficiaires distincts
 )
 
@@ -61,7 +61,7 @@ ACCOUNT_FEATURES = (
     "last_amount",
     "last_step",
     "last_dest",
-    "last_balance_error_orig",
+    "last_remaining_orig",  # solde avant - montant (n'utilise pas le solde après)
     "last_event_time",
 )
 _ACCOUNT_STRING_FIELDS = {"last_type", "last_dest", "last_event_time"}
